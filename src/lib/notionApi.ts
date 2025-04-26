@@ -77,3 +77,40 @@ export const fetchPage = async (
         throw error;
     }
 }
+
+import { markdownToRichText } from './markdownToRichText.js';
+
+export const addComment = async (
+    blockId: string,
+    commentContent: string
+): Promise<any> => {
+    try {
+        // Convert markdown content to Notion's rich text format
+        const richTextItems = markdownToRichText(commentContent);
+        
+        // If no rich text items were created (possibly empty content),
+        // fall back to simple text content
+        const richText = richTextItems.length > 0 ? richTextItems : [
+            {
+                type: 'text',
+                text: {
+                    content: commentContent || '',
+                },
+            },
+        ];
+        
+        // According to Notion API documentation, comments can be created on pages or
+        // as replies to existing comments in discussions
+        const response = await notion.comments.create({
+            parent: {
+                page_id: blockId, // Using the block ID as the page ID
+            },
+            rich_text: richText,
+        });
+        
+        return response;
+    } catch (error) {
+        console.error(`Error adding comment to block ${blockId}:`, error);
+        throw error;
+    }
+}

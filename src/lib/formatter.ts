@@ -23,17 +23,18 @@ const renderRichText = (richTextArray: Array<RichTextItemResponse> = []): string
     }).join('');
 };
 
-const renderChildren = (children: NotionBlockWithChildren[]): string => {
+const renderChildren = (children: NotionBlockWithChildren[], withBlockIds: boolean = false): string => {
     if (!children || !children.length) {
         return '';
     }
     
-    return children.map(renderBlockAsMarkdown).join('');
+    return children.map(block => renderBlockAsMarkdown(block, withBlockIds)).join('');
 };
 
 type BlockFormatterMap = {
   [Type in BlockObjectResponse['type']]?: (
-    block: Extract<NotionBlockWithChildren, { type: Type }>
+    block: Extract<NotionBlockWithChildren, { type: Type }>,
+    withBlockIds?: boolean
   ) => string;
 };
 
@@ -58,45 +59,45 @@ const blockFormatters: BlockFormatterMap = {
         return `### ${content}\n\n`;
     },
     
-    bulleted_list_item: (block) => {
+    bulleted_list_item: (block, withBlockIds = false) => {
         const content = renderRichText(block.bulleted_list_item.rich_text);
         let bulletedContent = `- ${content}`;
         
         if (block.children && block.children.length > 0) {
-            bulletedContent += '\n' + renderChildren(block.children);
+            bulletedContent += '\n' + renderChildren(block.children, withBlockIds);
         }
         
         return `${bulletedContent}\n`;
     },
     
-    numbered_list_item: (block) => {
+    numbered_list_item: (block, withBlockIds = false) => {
         const content = renderRichText(block.numbered_list_item.rich_text);
         let numberedContent = `1. ${content}`;
         
         if (block.children && block.children.length > 0) {
-            numberedContent += '\n' + renderChildren(block.children);
+            numberedContent += '\n' + renderChildren(block.children, withBlockIds);
         }
         
         return `${numberedContent}\n`;
     },
     
-    to_do: (block) => {
+    to_do: (block, withBlockIds = false) => {
         const checked = block.to_do.checked ? 'x' : ' ';
         const content = renderRichText(block.to_do.rich_text);
         
         let todoContent = `- [${checked}] ${content}`;
         
         if (block.children && block.children.length > 0) {
-            todoContent += '\n' + renderChildren(block.children);
+            todoContent += '\n' + renderChildren(block.children, withBlockIds);
         }
         
         return `${todoContent}\n`;
     },
     
-    toggle: (block) => {
+    toggle: (block, withBlockIds = false) => {
         const content = renderRichText(block.toggle.rich_text);
         const childContent = block.children && block.children.length > 0 
-            ? renderChildren(block.children) 
+            ? renderChildren(block.children, withBlockIds) 
             : '';
             
         return `<details>\n<summary>${content}</summary>\n${childContent}</details>\n\n`;
@@ -108,13 +109,13 @@ const blockFormatters: BlockFormatterMap = {
         return `\`\`\`${language}\n${content}\n\`\`\`\n\n`;
     },
     
-    quote: (block) => {
+    quote: (block, withBlockIds = false) => {
         const content = renderRichText(block.quote.rich_text);
         
         let quoteContent = `> ${content}`;
         
         if (block.children && block.children.length > 0) {
-            quoteContent += '\n' + renderChildren(block.children);
+            quoteContent += '\n' + renderChildren(block.children, withBlockIds);
         }
         
         return `${quoteContent}\n\n`;
@@ -122,14 +123,14 @@ const blockFormatters: BlockFormatterMap = {
     
     divider: () => '---\n\n',
     
-    callout: (block) => {
+    callout: (block, withBlockIds = false) => {
         const emoji = block.callout.icon?.type === 'emoji' ? block.callout.icon.emoji : '';
         const content = renderRichText(block.callout.rich_text);
         
         let calloutContent = `> ${emoji} ${content}`;
         
         if (block.children && block.children.length > 0) {
-            calloutContent += '\n' + renderChildren(block.children);
+            calloutContent += '\n' + renderChildren(block.children, withBlockIds);
         }
         
         return `${calloutContent}\n\n`;
@@ -150,7 +151,8 @@ const blockFormatters: BlockFormatterMap = {
 };
 
 const renderBlockAsMarkdown = (
-    block: GetBlockResponse | NotionBlockWithChildren
+    block: GetBlockResponse | NotionBlockWithChildren,
+    withBlockIds: boolean = false
 ): string => {
     // Handle partial block objects
     if (!isFullBlock(block)) {
@@ -161,25 +163,33 @@ const renderBlockAsMarkdown = (
     // TODO: use a type guard instead of casting
     const blockWithChildren = block as NotionBlockWithChildren;
 
+    let renderedContent = '';
+    
     // Use the type-safe formatter if available
     const formatter = blockFormatters[blockWithChildren.type];
     if (formatter) {
         // Type assertion is still needed because TypeScript can't narrow union types perfectly
         // TODO: find a way to avoid this casting
-        return formatter(blockWithChildren as any);
+        renderedContent = formatter(blockWithChildren as any);
     }
     
     // Default handler for unknown block types with children
-    if (blockWithChildren.children && blockWithChildren.children.length > 0) {
-        return renderChildren(blockWithChildren.children);
+    if (!renderedContent && blockWithChildren.children && blockWithChildren.children.length > 0) {
+        renderedContent = renderChildren(blockWithChildren.children, withBlockIds);
     }
     
-    return '';
+    // If withBlockIds is true, add the block ID as an HTML comment at the beginning
+    if (withBlockIds && renderedContent && block.id) {
+        return `<!-- block_id: ${block.id} -->\n${renderedContent}`;
+    }
+    
+    return renderedContent;
 };
 
 export const renderBlocksAsMarkdown = (
-    blocks: Array<GetBlockResponse | NotionBlockWithChildren>
-): string => blocks.map(renderBlockAsMarkdown).join('');
+    blocks: Array<GetBlockResponse | NotionBlockWithChildren>,
+    withBlockIds: boolean = false
+): string => blocks.map(block => renderBlockAsMarkdown(block, withBlockIds)).join('');
 
 export const renderBlockInfoFrontmatter = (
     blockInfo: GetBlockResponse | NotionBlockWithChildren
