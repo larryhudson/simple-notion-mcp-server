@@ -114,3 +114,121 @@ export const addComment = async (
         throw error;
     }
 }
+
+/**
+ * Create a new Notion page with the specified title and content blocks
+ * @param parentPageId Parent page ID where the new page will be created
+ * @param title Title for the new page
+ * @param blocks Array of Notion block objects for page content
+ * @returns The created page object
+ */
+export const createPage = async (
+    parentPageId: string,
+    title: string,
+    blocks: any[]
+): Promise<any> => {
+    try {
+        // Create a new page with the title
+        const newPage = await notion.pages.create({
+            parent: {
+                page_id: parentPageId,
+            },
+            properties: {
+                title: {
+                    title: [
+                        {
+                            type: 'text',
+                            text: {
+                                content: title,
+                            },
+                        },
+                    ],
+                },
+            },
+            // We can't add children blocks directly when creating a page
+            // We'll append them after the page is created
+        });
+
+        // If there are content blocks, append them to the newly created page
+        if (blocks && blocks.length > 0) {
+            await appendBlocksToPage(newPage.id, blocks);
+        }
+
+        return newPage;
+    } catch (error) {
+        console.error('Error creating new page:', error);
+        throw error;
+    }
+}
+
+/**
+ * Append blocks to an existing Notion page
+ * @param pageId ID of the page to append blocks to
+ * @param blocks Array of Notion block objects to append
+ * @returns The API response
+ */
+export const appendBlocksToPage = async (
+    pageId: string,
+    blocks: any[]
+): Promise<any> => {
+    try {
+        if (!blocks || blocks.length === 0) {
+            return { message: 'No blocks to append' };
+        }
+
+        const response = await notion.blocks.children.append({
+            block_id: pageId,
+            children: blocks,
+        });
+
+        return response;
+    } catch (error) {
+        console.error(`Error appending blocks to page ${pageId}:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Update the content of a specific block
+ * @param blockId ID of the block to update
+ * @param blockContent New content for the block
+ * @returns The updated block
+ */
+export const updateBlock = async (
+    blockId: string,
+    blockContent: any
+): Promise<any> => {
+    try {
+        // Fetch the current block to determine its type
+        const currentBlock = await fetchBlock(blockId);
+        
+        if (!isFullBlock(currentBlock)) {
+            throw new Error('Block cannot be updated: not a full block');
+        }
+        
+        // Extract just the type and content properties for the update
+        // Removing properties like id, object, created_time, etc.
+        const { type } = currentBlock;
+        
+        // The update payload will contain just the type and the content for that type
+        const updatePayload: any = {
+            block_id: blockId,
+            type: blockContent.type || type,
+        };
+        
+        // Add the content for the block's type
+        if (blockContent.type) {
+            updatePayload[blockContent.type] = blockContent[blockContent.type];
+        } else {
+            updatePayload[type] = blockContent[type] || {};
+        }
+        
+        // Update the block
+        const response = await notion.blocks.update(updatePayload);
+        
+        return response;
+    } catch (error) {
+        console.error(`Error updating block ${blockId}:`, error);
+        throw error;
+    }
+}

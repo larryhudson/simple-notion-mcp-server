@@ -5,6 +5,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { handler as handleGetPage } from "./tools/getPage.js"
 import { handler as handleAddComment } from "./tools/addComment.js"
+import { handler as handleCreatePage } from "./tools/createPage.js"
+import { handler as handleAppendToPage } from "./tools/appendToPage.js"
+import { handler as handleUpdateBlock } from "./tools/updateBlock.js"
 
 const server = new McpServer({
   name: "Simple Notion MCP server",
@@ -37,6 +40,58 @@ server.tool("add_comment",
   },
   async ({ block_id, comment_content }) => {
     const result = await handleAddComment(block_id, comment_content);
+    return {
+      content: [{
+        type: "text",
+        text: result
+      }]
+    }
+  }
+);
+
+server.tool("create_page",
+  "Create a new Notion page with supplied markdown content",
+  {
+    parent_page_id: z.string(),
+    title: z.string(),
+    markdown_content: z.string()
+  },
+  async ({ parent_page_id, title, markdown_content }) => {
+    const result = await handleCreatePage(parent_page_id, title, markdown_content);
+    return {
+      content: [{
+        type: "text",
+        text: result
+      }]
+    }
+  }
+);
+
+server.tool("append_to_page",
+  "Append markdown content to an existing Notion page",
+  {
+    page_id: z.string(),
+    markdown_content: z.string()
+  },
+  async ({ page_id, markdown_content }) => {
+    const result = await handleAppendToPage(page_id, markdown_content);
+    return {
+      content: [{
+        type: "text",
+        text: result
+      }]
+    }
+  }
+);
+
+server.tool("update_block",
+  "Update a specific block with markdown content",
+  {
+    block_id: z.string(),
+    markdown_content: z.string()
+  },
+  async ({ block_id, markdown_content }) => {
+    const result = await handleUpdateBlock(block_id, markdown_content);
     return {
       content: [{
         type: "text",
