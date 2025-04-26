@@ -1,0 +1,41 @@
+{
+  "name": "@larryhudson/simple-notion-mcp-server",
+  "version": "0.1.0",
+  "description": "Model Context Protocol (MCP) server for Notion",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "simple-notion-mcp-server": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "notion",
+    "mcp",
+    "claude",
+    "ai"
+  ],
+  "author": "Larry Hudson <larryhudson@hey.com>",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/larryhudson/simple-notion-mcp-server"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.10.2",
+    "@notionhq/client": "^2.3.0",
+    "dotenv": "^16.5.0",
+    "p-map": "^7.0.3"
+  }
+}
