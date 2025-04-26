@@ -188,47 +188,52 @@ export const appendBlocksToPage = async (
     }
 }
 
+
 /**
- * Update the content of a specific block
- * @param blockId ID of the block to update
- * @param blockContent New content for the block
- * @returns The updated block
+ * Replace a block with multiple blocks
+ * @param blockId ID of the block to replace
+ * @param newBlocks Array of new blocks to insert at the same position
+ * @returns A success message
  */
-export const updateBlock = async (
+export const replaceBlock = async (
     blockId: string,
-    blockContent: any
+    newBlocks: any[]
 ): Promise<any> => {
     try {
-        // Fetch the current block to determine its type
+        // First, get the current block to find its parent
         const currentBlock = await fetchBlock(blockId);
         
         if (!isFullBlock(currentBlock)) {
-            throw new Error('Block cannot be updated: not a full block');
+            throw new Error('Block cannot be replaced: not a full block');
         }
         
-        // Extract just the type and content properties for the update
-        // Removing properties like id, object, created_time, etc.
-        const { type } = currentBlock;
+        // Get the parent block ID
+        const parentId = currentBlock.parent.type === 'block_id' 
+            ? currentBlock.parent.block_id 
+            : currentBlock.parent.type === 'page_id'
+                ? currentBlock.parent.page_id
+                : null;
         
-        // The update payload will contain just the type and the content for that type
-        const updatePayload: any = {
+        if (!parentId) {
+            throw new Error('Could not determine parent ID for block');
+        }
+        
+        // Insert the new blocks after the current block
+        // This ensures they'll be in the exact position we want
+        const appendResponse = await notion.blocks.children.append({
+            block_id: parentId,
+            children: newBlocks,
+            after: blockId
+        });
+        
+        // Now that the new blocks are inserted, delete the original block
+        await notion.blocks.delete({
             block_id: blockId,
-            type: blockContent.type || type,
-        };
+        });
         
-        // Add the content for the block's type
-        if (blockContent.type) {
-            updatePayload[blockContent.type] = blockContent[blockContent.type];
-        } else {
-            updatePayload[type] = blockContent[type] || {};
-        }
-        
-        // Update the block
-        const response = await notion.blocks.update(updatePayload);
-        
-        return response;
+        return appendResponse;
     } catch (error) {
-        console.error(`Error updating block ${blockId}:`, error);
+        console.error(`Error replacing block ${blockId}:`, error);
         throw error;
     }
 }

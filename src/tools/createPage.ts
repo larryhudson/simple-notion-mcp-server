@@ -1,4 +1,3 @@
-// filepath: /Users/larryhudson/github.com/larryhudson/simple-notion-mcp-server/src/tools/createPage.ts
 import * as notionApi from "../lib/notionApi.js";
 import { markdownToBlocks } from "../lib/markdownToBlocks.js";
 

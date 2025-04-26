@@ -7,7 +7,7 @@ import { handler as handleGetPage } from "./tools/getPage.js"
 import { handler as handleAddComment } from "./tools/addComment.js"
 import { handler as handleCreatePage } from "./tools/createPage.js"
 import { handler as handleAppendToPage } from "./tools/appendToPage.js"
-import { handler as handleUpdateBlock } from "./tools/updateBlock.js"
+import { handler as handleReplaceBlock } from "./tools/replaceBlock.js"
 
 const server = new McpServer({
   name: "Simple Notion MCP server",
@@ -15,7 +15,7 @@ const server = new McpServer({
 });
 
 server.tool("get_page",
-    "Get a Notion page by ID, rendered as Markdown. Set with_block_ids to true if you want to add comments to specific blocks later.",
+    "Get a Notion page by ID, rendered as Markdown. Set with_block_ids to true if you want to add comments to / modify specific blocks later.",
   { 
     page_id: z.string(),
     with_block_ids: z.boolean().optional().default(false)
@@ -84,14 +84,14 @@ server.tool("append_to_page",
   }
 );
 
-server.tool("update_block",
-  "Update a specific block with markdown content",
+server.tool("replace_block",
+  "Replace a specific block with markdown content",
   {
     block_id: z.string(),
     markdown_content: z.string()
   },
   async ({ block_id, markdown_content }) => {
-    const result = await handleUpdateBlock(block_id, markdown_content);
+    const result = await handleReplaceBlock(block_id, markdown_content);
     return {
       content: [{
         type: "text",
